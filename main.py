@@ -1,4 +1,7 @@
+
+import json
 import math, queue
+from prettytable import PrettyTable
 from collections import Counter
 
 ####### Problem 1 #######
@@ -24,8 +27,10 @@ def get_frequencies(fname):
 # given a dictionary f mapping characters to frequencies, 
 # create a prefix code tree using Huffman's algorithm
 def make_huffman_tree(f):
+    # This uses the result of get_frequencies, which is ordered 
+    # from most to least common by most_common()
     p = queue.PriorityQueue()
-    # construct heap from frequencies, the initial items should be
+    # construct heap from frequencies, gthe initial items should be
     # the leaves of the final tree
     for c in f.keys():
         p.put(TreeNode(None,None,(f[c], c)))
@@ -34,30 +39,65 @@ def make_huffman_tree(f):
     # create a new node z with x and y as children,
     # insert z into the priority queue (using an empty character "")
     while (p.qsize() > 1):
-        # TODO
+        left = p.get()
+        right = p.get()
+        freq_sum = left.data[0] + right.data[0]
+        p.put(TreeNode(left, right, (freq_sum, "")))
         
     # return root of the tree
     return p.get()
 
 # perform a traversal on the prefix code tree to collect all encodings
-def get_code(node, prefix="", code={}):
-    # TODO - perform a tree traversal and collect encodings for leaves in code
-    pass
+def get_code(node, prefix="", code=None):
+    if code is None:
+        code = {}
+    if not node:
+        return code
+    if node.left is None and node.right is None:
+        char = node.data[1]
+        if char != "":
+            code[char] = prefix or "0"
+        return code
+    if node.left:
+        get_code(node.left, prefix + "0", code)
+    if node.right:
+        get_code(node.right, prefix + "1", code)
+    return code
 
 # given an alphabet and frequencies, compute the cost of a fixed length encoding
 def fixed_length_cost(f):
-    # TODO
-    pass
+    num_bits = math.ceil(math.log2(len(f.keys())))
+    num_chars = sum([int(item) for item in f.values()])
+    return num_bits * num_chars
 
 # given a Huffman encoding and character frequencies, compute cost of a Huffman encoding
 def huffman_cost(C, f):
-    # TODO
-    pass
+    total = 0
+    for char, freq in f.items():
+        code = C.get(char)
+        if not code:
+            continue
+        total += len(code) * freq
+    return total
 
-f = get_frequencies('f1.txt')
-print("Fixed-length cost:  %d" % fixed_length_cost(f))
-T = make_huffman_tree(f)
-C = get_code(T)
-print("Huffman cost:  %d" % huffman_cost(C, f))
 
 
+def main():
+    files = [ "f1.txt", "alice29.txt", "asyoulik.txt", "grammar.lsp", "fields.c" ]
+    rows = []
+    for file in files:
+        f = get_frequencies(file)
+        fixed_len = fixed_length_cost(f)
+        T = make_huffman_tree(f)
+        C = get_code(T)
+        huffman_len = huffman_cost(C, f)
+        rows.append([file, fixed_len, huffman_len, len(f.items()), huffman_len/fixed_len])
+
+    table = PrettyTable()
+    table.field_names = [ "File", "Fixed-Length Coding", "Huffman Coding", "Unique Characters", "Huffman vs. Fixed-Length" ]
+    table.add_rows(sorted(rows, key=lambda x: x[4]))
+
+    print(table )
+
+if __name__ == "__main__":
+    main()
